@@ -225,8 +225,10 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
 
-    add_user_to_g()
 
+
+    add_user_to_g()
+    user = g.user
 
     # user = User.query.filter_by(username=)
     # can't retrieve the user until the form is submitted as is
@@ -264,7 +266,11 @@ def profile():
 
     # auto populate the fields if data exists
 
-
+    form.username.data = user.username
+    form.email.data = user.email
+    form.image_url.data = user.image_url
+    form.header_image_url.data = user.header_image_url
+    form.bio.data = user.bio
 
     return render_template('/users/edit.html', form=form, user=g.user)
 
@@ -294,7 +300,6 @@ def messages_add():
 
     Show form if GET. If valid, update message and redirect to user page.
     """
-
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -347,11 +352,22 @@ def homepage():
     """
 
     if g.user:
+        # get list of users being following
+        user = g.user
+        followed_users = [followed_user.id for followed_user in user.following]
+        followed_users.append(user.id)
+
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(followed_users))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
+
+        # loop through messages
+        # loop through user ids 
+        # add to new list if there's a match
+        # stop at 100 values 
 
         return render_template('home.html', messages=messages)
 
