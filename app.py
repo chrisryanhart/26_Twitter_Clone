@@ -1,3 +1,4 @@
+from crypt import methods
 import os
 from turtle import update
 
@@ -6,7 +7,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UpdateUserForm, UserAddForm, LoginForm, MessageForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, Likes
 from flask_bcrypt import Bcrypt
 
 CURR_USER_KEY = "curr_user"
@@ -127,7 +128,7 @@ def logout():
 
     return redirect('/login')
 
-    # IMPLEMENT THIS
+    
 
 
 ##############################################################################
@@ -164,8 +165,28 @@ def users_show(user_id):
                 .order_by(Message.timestamp.desc())
                 .limit(100)
                 .all())
-    return render_template('users/show.html', user=user, messages=messages)
+    likes = Likes.query.filter_by(user_id=user.id)
+    liked_messages = [like.messages for like in likes]
 
+    like_count = len([like.id for like in likes])
+
+    return render_template('users/show.html', user=user, messages=messages, like_count=like_count)
+
+@app.route('/users/<int:user_id>/likes')
+def show_user_likes(user_id):
+
+    user = User.query.get_or_404(user_id)
+
+    likes = Likes.query.filter_by(user_id=user.id)
+    # can do a message query but filter based on user likes 
+    # then messages will be connected to the user
+
+    liked_messages = [like.messages for like in likes]
+    like_count = len(liked_messages)
+
+    # map the user info with the message
+
+    return render_template('users/likes.html', user=user, like_count=like_count, liked_messages=liked_messages)
 
 @app.route('/users/<int:user_id>/following')
 def show_following(user_id):
@@ -176,7 +197,12 @@ def show_following(user_id):
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/following.html', user=user)
+
+    likes = Likes.query.filter_by(user_id=user.id)
+    liked_messages = [like.messages for like in likes]
+    like_count = len(liked_messages)
+
+    return render_template('users/following.html', user=user, like_count=like_count)
 
 
 @app.route('/users/<int:user_id>/followers')
@@ -188,7 +214,11 @@ def users_followers(user_id):
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/followers.html', user=user)
+
+    likes = Likes.query.filter_by(user_id=user.id)
+    liked_messages = [like.messages for like in likes]
+    like_count = len(liked_messages)
+    return render_template('users/followers.html', user=user, like_count=like_count)
 
 
 @app.route('/users/follow/<int:follow_id>', methods=['POST'])
@@ -369,11 +399,48 @@ def homepage():
         # add to new list if there's a match
         # stop at 100 values 
 
-        return render_template('home.html', messages=messages)
+        # find out if message is liked
+
+        likes = Likes.query.all()
+        like_message_ids = [like.message_id for like in likes]
+        # can unpack like ids here
+
+        # test = []
+
+        # for msg in messages:
+        #     if msg.id in like_message_ids:
+        #         test.append(msg.id)
+        #     # [msg.id for like in likes if like.message_id == msg.id]
+            
+        return render_template('home.html', messages=messages, likes=likes, like_message_ids=like_message_ids, user=user)
 
     else:
         return render_template('home-anon.html')
 
+@app.route('/users/handle_like/<int:msg_id>', methods=["POST"])
+def handle_like(msg_id):
+
+    curr_user_id = g.user.id
+
+    likes = Likes.query.filter_by(user_id=curr_user_id)
+
+    like_status = [like.id for like in likes if msg_id == like.message_id]
+
+    if (len(like_status)!=0):
+        # Delete message from likes
+
+        like_to_delete = Likes.query.get(like_status[0])
+        
+        db.session.delete(like_to_delete)
+        db.session.commit()
+    else:
+        # Add message to likes 
+        new_like = Likes(user_id = curr_user_id, message_id = msg_id)
+
+        db.session.add(new_like)
+        db.session.commit()
+
+    return redirect('/')
 
 ##############################################################################
 # Turn off all caching in Flask
