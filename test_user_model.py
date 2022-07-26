@@ -9,6 +9,8 @@ import os
 from re import U
 from unittest import TestCase
 
+from psycopg2 import IntegrityError
+
 from models import db, User, Message, Follows
 
 # BEFORE we import our app, let's set an environmental variable
@@ -132,7 +134,7 @@ class UserModelTestCase(TestCase):
 
         self.assertFalse(u2.is_followed_by(u1))
 
-    def test_user_signup(self):
+    def test_invalid_user_signup(self):
         # Add new user 
         try:
             u = User.signup(
@@ -142,10 +144,16 @@ class UserModelTestCase(TestCase):
                 image_url='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Grizzly_Giant_Mariposa_Grove.jpg/440px-Grizzly_Giant_Mariposa_Grove.jpg'
             )
             db.session.commit()
+        except IntegrityError as err:
+            print(f'The error is {err}')
+        else:
+            print('couldnt identify the error')
 
-        except IntegrityError:
-            flash("Username already taken", 'danger')
-            return False
+        self.assertTrue(u)
+
+        # except IntegrityError:
+        #     flash("Username already taken", 'danger')
+        #     return False
         # try:
         #     user = User.signup(
         #         username=form.username.data,
@@ -155,9 +163,9 @@ class UserModelTestCase(TestCase):
         #     )
             # db.session.commit()
 
-        except IntegrityError:
-            flash("Username already taken", 'danger')
-            return render_template('users/signup.html', form=form)
+        # except IntegrityError:
+        #     flash("Username already taken", 'danger')
+        #     return render_template('users/signup.html', form=form)
 
         db.session.commit()
 
