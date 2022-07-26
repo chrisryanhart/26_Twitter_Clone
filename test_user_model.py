@@ -9,6 +9,8 @@ import os
 from re import U
 from unittest import TestCase
 
+from sqlalchemy import exc
+
 from psycopg2 import IntegrityError
 
 from models import db, User, Message, Follows
@@ -45,20 +47,24 @@ class UserModelTestCase(TestCase):
 
         self.client = app.test_client()
 
-        u1 = User(
+        User.signup(
             email="party@gmail.com",
             username="3rduser",
-            password="3rd_password"
+            password="3rd_password",
+            image_url=None
         )
 
-        u2 = User(
+        db.session.commit()
+
+        User.signup(
             email="2ndEmail@gmail.com",
             username="2nd_user",
-            password="2nd_password"
+            password="2nd_password",
+            image_url=None
         )
 
-        db.session.add(u1)
-        db.session.add(u2)
+        # db.session.add(u1)
+        # db.session.add(u2)
         db.session.commit()
 
     # def tearDown(self):
@@ -134,51 +140,61 @@ class UserModelTestCase(TestCase):
 
         self.assertFalse(u2.is_followed_by(u1))
 
-    def test_invalid_user_signup(self):
-        # Add new user 
-        try:
+    def test_invalid_username_signup(self):
+        # tests for duplicate email
+        u = User.signup(
+            username='3rduser',
+            password='PW',
+            email='test@gmail.com',
+            image_url='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Grizzly_Giant_Mariposa_Grove.jpg/440px-Grizzly_Giant_Mariposa_Grove.jpg'
+        )
+
+        with self.assertRaises(exc.IntegrityError):
+            db.session.commit()
+
+    def test_invalid_password(self):
+
+        with self.assertRaises(ValueError):
             u = User.signup(
-                username='3rduser',
-                password='PW',
-                email='test@gmail.com',
+                username='4th_user',
+                password=None,
+                email='4th_email@gmail.com',
                 image_url='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Grizzly_Giant_Mariposa_Grove.jpg/440px-Grizzly_Giant_Mariposa_Grove.jpg'
             )
+
+    def test_invalid_email(self):
+       
+        u = User.signup(
+            username='4th_user',
+            password='SecretPW',
+            email=None,
+            image_url='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Grizzly_Giant_Mariposa_Grove.jpg/440px-Grizzly_Giant_Mariposa_Grove.jpg'
+        )
+        with self.assertRaises(exc.IntegrityError):
             db.session.commit()
-        except IntegrityError as err:
-            print(f'The error is {err}')
-        else:
-            print('couldnt identify the error')
 
-        self.assertTrue(u)
+    def test_authenticate_valid_credentials(self):
+        username="3rduser"
+        password="3rd_password"
 
-        # except IntegrityError:
-        #     flash("Username already taken", 'danger')
-        #     return False
-        # try:
-        #     user = User.signup(
-        #         username=form.username.data,
-        #         password=form.password.data,
-        #         email=form.email.data,
-        #         image_url=form.image_url.data or User.image_url.default.arg,
-        #     )
-            # db.session.commit()
+        resp = User.authenticate(username,password)
 
-        # except IntegrityError:
-        #     flash("Username already taken", 'danger')
-        #     return render_template('users/signup.html', form=form)
+        self.assertTrue(resp)
 
-        db.session.commit()
+    def test_authenicate_invalid_username(self):
+        username = "doesNotExist"
+        password = "3rd_password"
 
-        # PW still commits to DB even though it doesn't comply with form validators
+        resp = User.authenticate(username,password)
 
-        self.assertEqual(u.id, 3)
-    
-    # def test_invalid_user_signup(self):
-        # test cases:
-        # completely empty fields
-        # username already taken
+        self.assertFalse(resp)
 
+    def test_authenicate_invalid_password(self):
+        username = "3rduser"
+        password = "sprinkles"
 
-# def signup(cls, username, email, password, image_url):
+        resp = User.authenticate(username,password)
 
-
+        self.assertFalse(resp)
+        
+        # def authenticate(cls, username, password):
