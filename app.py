@@ -2,7 +2,7 @@ from crypt import methods
 import os
 from turtle import update
 
-from flask import Flask, render_template, request, flash, redirect, session, g
+from flask import Flask, render_template, request, flash, redirect, session, g, request
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
@@ -154,6 +154,10 @@ def list_users():
 @app.route('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
+
+    # if not g.user:
+    #     flash("Access unauthorized.", "danger")
+    #     return redirect("/")
 
     user = User.query.get_or_404(user_id)
 
@@ -354,15 +358,16 @@ def messages_show(message_id):
     return render_template('messages/show.html', message=msg)
 
 
-@app.route('/messages/<int:message_id>/delete', methods=["POST"])
+@app.route('/messages/<int:message_id>/delete', methods=["GET","POST"])
 def messages_destroy(message_id):
     """Delete a message."""
+    msg = Message.query.get(message_id)
 
-    if not g.user:
+    if not g.user or msg.user_id != g.user.id:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    msg = Message.query.get(message_id)
+
     db.session.delete(msg)
     db.session.commit()
 

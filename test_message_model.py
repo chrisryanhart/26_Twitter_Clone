@@ -3,13 +3,14 @@
 #    python -m unittest test_user_model.py
 
 
+from datetime import datetime
 import os
 from re import U
 from unittest import TestCase
 
 from sqlalchemy import exc
 
-from psycopg2 import IntegrityError
+from psycopg2 import IntegrityError, Timestamp
 
 from models import db, User, Message, Follows
 
@@ -65,4 +66,101 @@ class MessageModelTestCase(TestCase):
         # db.session.add(u2)
         db.session.commit()
 
-    def test_
+        # message 1
+        m1 = Message(text='here is my message',user_id=1)
+
+        db.session.add(m1)
+        db.session.commit()
+
+        # message 2
+        m2 = Message(text='2nd message', user_id=1)
+
+        # message 3
+        m3 = Message(text='3rd message',user_id=2)
+
+        # db.session.add(m1)
+        db.session.add(m2)
+        db.session.add(m3)
+
+        db.session.commit()
+
+    def test_valid_message(self):
+        m4 = Message(text='test message',user_id=2)
+
+        db.session.add(m4)
+        db.session.commit()
+        
+        # gets id assign once commited to the DB
+        self.assertTrue(type(m4.id)==int)
+
+    def test_invalid_text(self):
+
+        more_than_140_char = 'lj;alsjdkfl;j;lasdjkf;lkjsadf;ljasdfl;jkasd;lfjas;ldjf;lasdjkf;ljsadkf;ljdsakf;ljdsaf;lsadjkfl;sadjkf;ldjskf;lasdjkf;ladjskf;lsadjf;lasdjkf;lasdjkf;ldjsakfl;asdjkas;ldfjka;sldjfk;asldjfas;ldjfa;sldjfka;lsjf'
+
+        m4 = Message(text=more_than_140_char,user_id=2)
+
+        db.session.add(m4)
+
+        with self.assertRaises(exc.DataError):
+            db.session.commit()
+
+        # self.assertTrue(type(m4.id)==int)
+
+    def test_no_text(self):
+        u1 = User.query.get(1)
+
+        m4 = Message(text=None,user_id=1)
+
+        db.session.add(m4)
+
+        with self.assertRaises(exc.IntegrityError):
+            db.session.commit()
+
+    def test_message_relationship(self):
+
+        m1 = Message.query.get(1)
+
+        self.assertEqual(m1.user.id,1)
+
+    def test_user_relationship(self):
+
+        u1 = User.query.get(1)
+
+        self.assertEqual(repr(u1.messages[0]),'<Message 1>')
+
+    
+    def test_invalid_timestamp(self):
+
+        u1 = User.query.get(1)
+
+        invalid_m = Message(text='3rd message', timestamp='',user_id=2)
+
+        db.session.add(invalid_m)
+
+        with self.assertRaises(exc.DataError):
+            db.session.commit()
+
+    def test_no_user_id(self):
+
+        invalid_user_id = Message(text='3rd message',user_id=None)
+        db.session.add(invalid_user_id)
+
+        with self.assertRaises(exc.IntegrityError):
+            db.session.commit()
+
+        
+
+
+    
+
+
+
+
+    # text not nullable
+
+    # message has relationship with user
+
+    # timestamp not null
+
+    # user_id is FK in another table
+
