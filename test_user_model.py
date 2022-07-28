@@ -93,6 +93,9 @@ class UserModelTestCase(TestCase):
         # confirm is_following detects when user1 is following user 2
 
     def test_user_following(self):
+        # is_following returns a list with who this user that is following
+        # same as test_is_following
+
         u3 = User(
             email="vacation@gmail.com",
             username="3rd_user",
@@ -124,6 +127,8 @@ class UserModelTestCase(TestCase):
         self.assertFalse(u1.is_following(u2))
 
     def test_followed_by(self):
+        # is_followed_by tells you if this user is being followed by someone else
+
         u1 = User.query.get(1)
         u2 = User.query.get(2)
 
@@ -140,7 +145,26 @@ class UserModelTestCase(TestCase):
 
         self.assertFalse(u2.is_followed_by(u1))
 
-    def test_invalid_username_signup(self):
+# USER SIGN UP TESTS
+
+    def test_valid_user_signup(self):
+        u = User.signup(
+            username='uniqueUser',
+            password='PW',
+            email='unique@gmail.com',
+            image_url='https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Grizzly_Giant_Mariposa_Grove.jpg/440px-Grizzly_Giant_Mariposa_Grove.jpg'
+        )
+
+        u_id = 20
+        u.id = u_id 
+        db.session.commit()
+
+        u_test = User.query.get(u_id)
+
+        self.assertIsNotNone(u_test)
+
+
+    def test_invalid_duplicate_email(self):
         # tests for duplicate email
         u = User.signup(
             username='3rduser',
@@ -172,6 +196,8 @@ class UserModelTestCase(TestCase):
         )
         with self.assertRaises(exc.IntegrityError):
             db.session.commit()
+
+    # Authentication Tests
 
     def test_authenticate_valid_credentials(self):
         username="3rduser"

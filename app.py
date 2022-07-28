@@ -72,6 +72,8 @@ def signup():
     If the there already is a user with that username: flash message
     and re-present form.
     """
+    if CURR_USER_KEY in session:
+        del session[CURR_USER_KEY]
 
     form = UserAddForm()
 
@@ -179,6 +181,10 @@ def users_show(user_id):
 @app.route('/users/<int:user_id>/likes')
 def show_user_likes(user_id):
 
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
     user = User.query.get_or_404(user_id)
 
     likes = Likes.query.filter_by(user_id=user.id)
@@ -259,19 +265,12 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
 
-
-
     add_user_to_g()
     user = g.user
-
-    # user = User.query.filter_by(username=)
-    # can't retrieve the user until the form is submitted as is
 
     form = UpdateUserForm()
 
     if form.validate_on_submit():
-
-        # Have to form fields already be complete with the 
 
         username = form.username.data
         user = User.query.filter_by(username=username)
@@ -290,16 +289,12 @@ def profile():
         user[0].header_image_url = form.header_image_url.data
         user[0].bio = form.bio.data
 
-        # updated_profile = User(username=username,email=email, image_url=image_url, header_image_url=header_image_url,bio=bio,password=hashed_password)
-
         db.session.add(user[0])
         db.session.commit()
 
         return redirect(f'/users/{user[0].id}')
-    # confirm PW matches original hashed PW
 
     # auto populate the fields if data exists
-
     form.username.data = user.username
     form.email.data = user.email
     form.image_url.data = user.image_url
@@ -334,7 +329,7 @@ def messages_add():
 
     Show form if GET. If valid, update message and redirect to user page.
     """
-    if not g.user:
+    if not g.user or request.form['user_id'] != g.user.id:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -354,7 +349,7 @@ def messages_add():
 def messages_show(message_id):
     """Show a message."""
 
-    msg = Message.query.get(message_id)
+    msg = Message.query.get_or_404(message_id)
     return render_template('messages/show.html', message=msg)
 
 
@@ -399,23 +394,8 @@ def homepage():
                     .limit(100)
                     .all())
 
-        # loop through messages
-        # loop through user ids 
-        # add to new list if there's a match
-        # stop at 100 values 
-
-        # find out if message is liked
-
         likes = Likes.query.all()
         like_message_ids = [like.message_id for like in likes]
-        # can unpack like ids here
-
-        # test = []
-
-        # for msg in messages:
-        #     if msg.id in like_message_ids:
-        #         test.append(msg.id)
-        #     # [msg.id for like in likes if like.message_id == msg.id]
             
         return render_template('home.html', messages=messages, likes=likes, like_message_ids=like_message_ids, user=user)
 
@@ -425,16 +405,23 @@ def homepage():
 @app.route('/users/handle_like/<int:msg_id>', methods=["POST"])
 def handle_like(msg_id):
 
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
     curr_user_id = g.user.id
 
     likes = Likes.query.filter_by(user_id=curr_user_id)
+    like = [like for like in likes if msg_id == like.message_id]
 
-    like_status = [like.id for like in likes if msg_id == like.message_id]
+    if len(like) != 0 and like[0].user_id != g.user.id:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
 
-    if (len(like_status)!=0):
+
+    if (len(like)!=0):
         # Delete message from likes
-
-        like_to_delete = Likes.query.get(like_status[0])
+        like_to_delete = Likes.query.get(like[0].user_id)
         
         db.session.delete(like_to_delete)
         db.session.commit()

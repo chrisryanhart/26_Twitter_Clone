@@ -12,7 +12,7 @@ from sqlalchemy import exc
 
 from psycopg2 import IntegrityError, Timestamp
 
-from models import db, User, Message, Follows
+from models import db, User, Message, Follows, Likes
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -83,6 +83,24 @@ class MessageModelTestCase(TestCase):
         db.session.add(m3)
 
         db.session.commit()
+
+    def test_message_likes(self):
+        messages = Message.query.all()
+
+        m1 = messages[0]
+
+        u1 = User.query.first()
+
+        like = Likes(user_id=u1.id, message_id=m1.id)
+
+        db.session.add(like)
+        db.session.commit()
+
+        likes = Likes.query.filter_by(user_id=u1.id).all()
+
+        self.assertEqual(len(likes), 1)
+
+
 
     def test_valid_message(self):
         m4 = Message(text='test message',user_id=2)
